@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Todo Service</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #4f8cff, #7bd5ff);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+            padding: 24px 24px 18px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: #777;
+            margin-bottom: 16px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .input-row input[type="text"] {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .input-row button {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: none;
+            background-color: #4f8cff;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.2s;
+        }
+
+        .input-row button:hover {
+            background-color: #3e74d6;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+
+        .input-row button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .empty-text {
+            font-size: 13px;
+            color: #aaa;
+            text-align: center;
+            padding: 20px 8px;
+        }
+
+        ul {
+            list-style: none;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            margin-bottom: 8px;
+        }
+
+        .todo-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .todo-title {
+            font-size: 14px;
+        }
+
+        .todo-title.completed {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .todo-meta {
+            font-size: 11px;
+            color: #bbb;
+        }
+
+        .actions button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 6px;
+            border-radius: 6px;
+        }
+
+        .actions .delete-btn {
+            color: #ff4b6e;
+        }
+
+        .actions .delete-btn:hover {
+            background: rgba(255, 75, 110, 0.09);
+        }
+
+        .footer {
+            text-align: right;
+            margin-top: 4px;
+            font-size: 11px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Simple Todo Service</h1>
+    <div class="subtitle">Spring Boot REST API 데모 화면</div>
+
+    <div class="input-row">
+        <input id="todo-input" type="text" placeholder="할 일을 입력하세요">
+        <button id="add-btn">추가</button>
+    </div>
+
+    <ul id="todo-list"></ul>
+    <div id="empty-text" class="empty-text" style="display: none;">등록된 할 일이 없습니다.</div>
+
+    <div class="footer">
+        Powered by Spring Boot + H2
+    </div>
+</div>
+
+<script>
+    const API_BASE = '/api/todos';
+
+    async function loadTodos() {
+        try {
+            const res = await fetch(API_BASE);
+            const todos = await res.json();
+            renderTodos(todos);
+        } catch (e) {
+            console.error(e);
+            alert('Todo 목록을 불러오는 중 오류가 발생했습니다.');
+        }
+    }
+
+    function renderTodos(todos) {
+        const list = document.getElementById('todo-list');
+        const emptyText = document.getElementById('empty-text');
+        list.innerHTML = '';
+
+        if (!todos || todos.length === 0) {
+            emptyText.style.display = 'block';
+            return;
+        }
+        emptyText.style.display = 'none';
+
+        todos.forEach(todo => {
+            const li = document.createElement('li');
+
+            const left = document.createElement('div');
+            left.className = 'todo-left';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = todo.completed === true;
+            checkbox.onchange = () => toggleComplete(todo);
+
+            const textWrapper = document.createElement('div');
+
+            const title = document.createElement('div');
+            title.className = 'todo-title';
+            if (todo.completed) {
+                title.classList.add('completed');
+            }
+            title.textContent = todo.title;
+
+            const meta = document.createElement('div');
+            meta.className = 'todo-meta';
+            if (todo.createdAt) {
+                meta.textContent = todo.createdAt.replace('T', ' ').slice(0, 16);
+            } else {
+                meta.textContent = '';
+            }
+
+            textWrapper.appendChild(title);
+            textWrapper.appendChild(meta);
+
+            left.appendChild(checkbox);
+            left.appendChild(textWrapper);
+
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '삭제';
+            deleteBtn.onclick = () => deleteTodo(todo.id);
+
+            actions.appendChild(deleteBtn);
+
+            li.appendChild(left);
+            li.appendChild(actions);
+
+            list.appendChild(li);
+        });
+    }
+
+    async function addTodo() {
+        const input = document.getElementById('todo-input');
+        const title = input.value.trim();
+        if (!title) {
+            alert('할 일을 입력해주세요.');
+            return;
+        }
+
+        try {
+            console.log('POST /api/todos 호출 시작');
+            const res = await fetch(API_BASE, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: title,
+                    completed: false
+                })
+            });
+
+            console.log('응답 상태코드:', res.status);
+
+            if (!res.ok) {
+                const text = await res.text();
+                console.error('서버 에러 응답:', text);
+                alert('서버 오류가 발생했습니다: ' + res.status);
+                return;
+            }
+
+            input.value = '';
+            await loadTodos();
+        } catch (e) {
+            console.error(e);
+            alert('할 일을 추가하는 중 오류가 발생했습니다.');
+        }
+    }
+
+    async function toggleComplete(todo) {
+        try {
+            await fetch(`${API_BASE}/${todo.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    completed: !todo.completed
+                })
+            });
+            await loadTodos();
+        } catch (e) {
+            console.error(e);
+            alert('상태를 변경하는 중 오류가 발생했습니다.');
+        }
+    }
+
+    async function deleteTodo(id) {
+        if (!confirm('정말 삭제할까요?')) return;
+
+        try {
+            await fetch(`${API_BASE}/${id}`, {
+                method: 'DELETE'
+            });
+            await loadTodos();
+        } catch (e) {
+            console.error(e);
+            alert('삭제 중 오류가 발생했습니다.');
+        }
+    }
+
+    // 페이지 로드 후 버튼에 이벤트 리스너 연결
+    document.getElementById('add-btn').onclick = addTodo;
+
+    // 처음 페이지 열릴 때 목록 불러오기
+    loadTodos();
+</script>
+</body>
+</html>
